@@ -1,7 +1,13 @@
 #include <R.h>
 #include <Rinternals.h>
 
-/* The R function we save to avoid passing character strings in fortran! */
+/* The R function we save to avoid passing anything besides double and int items in fortran! */
+/* The coding process is always: */
+/* 1. Modify `rfcall` function below with appropriate arguments and matching code in delineated section. */
+
+/* Then calling workflow has to always be: */
+/* 1. Call `store_rfun` in R to save the user-specified function `rfun` before calling `.Fortran`. */
+/* 2. Make the `.Fortran` fortran function call `rfcall` with appropriate arguments. */
 
 static SEXP rfunc;
 /* static SEXP rho; */
@@ -13,47 +19,43 @@ SEXP store_rfun(SEXP rfun) {
 }
 
 void F77_NAME(rfcall)(int *n, double *y, double *z, double *w, double *result) {
+  
+  /* Start of section that customized for arguments passed to `rfcall` */
+  /* Ensure you modify the arguments above, first */
+  /* Then modify stuff below to match that. */
 
   int num_protected = 0;  
   SEXP ry, rz, rw;
   
-  printf("Before PROTECT\n");
   PROTECT(ry = allocVector(REALSXP, *n));
   num_protected++;
   PROTECT(rz = allocVector(REALSXP, *n));
   num_protected++;
   PROTECT(rw = allocVector(REALSXP, *n));
   num_protected++;
-  printf("AFTER PROTECT\n");
   
   double *yvec = REAL(ry); double *zvec = REAL(rz); double *wvec = REAL(rw);
-  printf("AFTER REAL\n");
   for (int i = 0; i < *n; i++) {
     yvec[i] = y[i]; zvec[i] = z[i]; wvec[i] = w[i];
   }
+  /* End of section that customized for arguments passed to `rfcall` */
 
   SEXP rho = R_GetCurrentEnv();
-
-  printf("build call\n");  
-  
   SEXP call = PROTECT(LCONS(rfunc, LCONS(ry, LCONS(rz, LCONS(rw, R_NilValue)))));
   num_protected++;
-
-  printf("Start eval\n");
   
   SEXP r_result = R_forceAndCall(call, 3, rho);
-  
-  /* SEXP r_result; */
-  /* PROTECT(r_result = eval(rfunc, rho)); */
-  printf("Done eval\n");  
-  /* num_protected++; */
+
+  /* Start of further post-processing section. Modify as needed to check result */
 
   R_len_t len = length(r_result);
   if (len > 1) {
     error("R discrepancy function result length > 1");
   }
+
   *result = REAL(r_result)[0];
-  printf("%f\n", *result);
+
+  /* End of further post-processing section. */  
 
   UNPROTECT(num_protected);
 }
