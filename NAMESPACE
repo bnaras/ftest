@@ -1,0 +1,4 @@
+useDynLib(ftest)
+export(hello)
+export(ftest)
+
