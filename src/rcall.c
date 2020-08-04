@@ -1,7 +1,6 @@
 #include <R.h>
 #include <Rinternals.h>
 
-/* The R function we save to avoid passing anything besides double and int items in fortran! */
 /* The coding process is always: */
 /* 1. Modify `rfcall` function below with appropriate arguments and matching code in delineated section. */
 
@@ -9,8 +8,8 @@
 /* 1. Call `store_rfun` in R to save the user-specified function `rfun` before calling `.Fortran`. */
 /* 2. Make the `.Fortran` fortran function call `rfcall` with appropriate arguments. */
 
+/* The R function we save to avoid passing anything besides double and int items in fortran! */
 static SEXP rfunc;
-/* static SEXP rho; */
 
 /* Store the R function */
 SEXP store_rfun(SEXP rfun) {
@@ -60,15 +59,3 @@ void F77_NAME(rfcall)(int *n, double *y, double *z, double *w, double *result) {
   UNPROTECT(num_protected);
 }
 
-  
-  
-  /* SEXP s, t; */
-  /* /\* printf("%d\n", *val); *\/ */
-  /* t = s = PROTECT(allocList(4)); */
-  /* num_protected++; */
-  
-  /* SET_TYPEOF(s, LANGSXP); */
-  /* SETCAR(t, install(rfunc)); t = CDR(t); */
-  /* SETCAR(t,  ry); SET_TAG(t, install("y"));  t = CDR(t); */
-  /* SETCAR(t,  rz); SET_TAG(t, install("z"));  t = CDR(t); */
-  /* SETCAR(t,  rw); SET_TAG(t, install("w")); */

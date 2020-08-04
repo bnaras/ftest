@@ -21,7 +21,7 @@ static const R_CallMethodDef CallEntries[] = {
 
 
 #define FDEF(name)  {#name, (DL_FUNC) &F77_SUB(name), sizeof(name ## _t)/sizeof(name ## _t[0]), name ##_t}
-void F77_SUB(frcall)(
+void F77_SUB(fcallr)(
 int *n,
 double *y,
 double *z,
@@ -29,7 +29,7 @@ double *w,
 double *res
 );
  
-static R_NativePrimitiveArgType frcall_t[] = {
+static R_NativePrimitiveArgType fcallr_t[] = {
 INTSXP,
 REALSXP,
 REALSXP,
@@ -38,7 +38,7 @@ REALSXP
 };
 
 static R_FortranMethodDef fMethods[] = {
-FDEF(frcall) ,
+FDEF(fcallr) ,
 {NULL, NULL, 0}
 };
 
