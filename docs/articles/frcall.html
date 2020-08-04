@@ -102,7 +102,7 @@
 <div id="example" class="section level2">
 <h2 class="hasAnchor">
 <a href="#example" class="anchor"></a>Example</h2>
-<p>Suppose we wish to call the following R function from Fortran in a package, say <code>ftest</code>. This is where it is most useful anyway.</p>
+<p>Suppose we wish to call the following R function from Fortran in a package, say <code>ftest</code>. It is in the packaging context where such calls are useful anyway.</p>
 <div class="sourceCode" id="cb1"><html><body><pre class="r"><span class="co">#' Compute a discrepancy measure between y and z weighted by w</span>
 <span class="co">#' @param y the first vector</span>
 <span class="co">#' @param z the second vector</span>
@@ -207,7 +207,11 @@
 <li>Write the Fortran interface using <code><a href="https://rdrr.io/r/base/Foreign.html">.Fortran()</a></code> call.</li>
 </ol>
 <div class="sourceCode" id="cb7"><html><body><pre class="r"><span class="co">#' Compute the discrepancy using `r_fun` using`fcallr`</span>
-<span class="co">#' @para r_fun a function of three parameters </span>
+<span class="co">#' @param r_fun a function of three parameters</span>
+<span class="co">#' @param y the y vector</span>
+<span class="co">#' @param z the z wector</span>
+<span class="co">#' @param w the weights</span>
+<span class="co">#' @return the result of calling `r_fun` with `y`, `z`, `w`.</span>
 <span class="no">r_from_f</span>  <span class="kw">&lt;-</span> <span class="kw">function</span>(<span class="no">r_fun</span>, <span class="no">y</span>, <span class="no">z</span>, <span class="no">w</span>) {
     <span class="co">## save the R function to call in C ; fcallr knows to look for it there.</span>
     <span class="kw pkg">ftest</span><span class="kw ns">::</span><span class="fu"><a href="../reference/save_rfunc.html">save_rfunc</a></span>(<span class="no">r_fun</span>)

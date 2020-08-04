@@ -37,7 +37,8 @@ colleagues of mine and they've asked me for such a facility.
 ## Example
 
 Suppose we wish to call the following R function from Fortran in a
-package, say `ftest`. This is where it is most useful anyway.
+package, say `ftest`. It is in the packaging context where such calls
+are useful anyway.
 
 ```{r}
 #' Compute a discrepancy measure between y and z weighted by w
@@ -163,7 +164,11 @@ save_rfunc  <- function(f) {
 
 ```{r}
 #' Compute the discrepancy using `r_fun` using`fcallr`
-#' @para r_fun a function of three parameters 
+#' @param r_fun a function of three parameters
+#' @param y the y vector
+#' @param z the z wector
+#' @param w the weights
+#' @return the result of calling `r_fun` with `y`, `z`, `w`.
 r_from_f  <- function(r_fun, y, z, w) {
     ## save the R function to call in C ; fcallr knows to look for it there.
     ftest::save_rfunc(r_fun)
