@@ -1,0 +1,200 @@
+---
+title: "Calling R functions from Fortran"
+date: '`r Sys.Date()`'
+author: "Balasubramanian Narasimhan"
+output:
+  html_document:
+  fig_caption: yes
+  theme: cerulean
+  toc: yes
+  toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{frcall}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+## Introduction
+
+The _Writing R extensions_ manual actually provides almost all the
+details for calling R functions from Fortran. This package is a
+concrete realization of those instructions. There are, however, a few
+details to note in the interest of portability.
+
+- The only structures passed to and fro the R function from Fortran
+  are integer and double vectors or matrices.
+- Strings are problematic and best avoided.
+- A bit of C glue is needed to make the call to R. 
+
+## Is it even needed?
+
+There are times when you would like to allow a user-specified
+computation to be used in your awesome Fortran routine. In fact, some
+of the fastest algorithms are implemented in Fortran by Stanford
+colleagues of mine and they've asked me for such a facility.
+
+
+## Example
+
+Suppose we wish to call the following R function from Fortran in a
+package, say `ftest`. This is where it is most useful anyway.
+
+```{r}
+#' Compute a discrepancy measure between y and z weighted by w
+#' @param y the first vector
+#' @param z the second vector
+#' @param w the weights
+#' @return a scalar discrepancy measure
+discrepancy  <- function(y, z, w) {
+    w  <- w/sum(w)
+    sum( w * (y - z)^2 )
+}
+```
+
+An example call:
+
+```{r}
+discrepancy(y = 1:10, z = 11:20, w = rep(1, 10))
+```
+
+## Calling from Fortran
+
+The steps are as follows, with some being specific to the R function
+being called. The calling sequence involves two calls that go together
+in sequence: saving the R function in a place that Fortran can look
+for it and calling a Fortran function to actually execute the call.
+
+1. Write a C function, say `src/rcall.c` to call the R function as
+   follows. What follows below is the implementation of the
+   `discrepancy()` function above. You will have to tailor this to
+   each R function you want to call. Note that this requires knowledge
+   of C/C++ interface in R, discussed in the _Writing R Extensions_
+   manual. The comments below are meant to help.
+
+```{c, eval = FALSE}
+/* Start of section not to be modified */
+
+#include <R.h>
+#include <Rinternals.h>
+
+static SEXP rfunc;
+
+/* Store the R function */
+SEXP store_rfun(SEXP rfun) {
+  rfunc = rfun;
+  return(R_NilValue);
+}
+
+/* End of section not to be modified */
+
+void F77_NAME(rfcall)(int *n, double *y, double *z, double *w, double *result) {
+
+  /* 
+	 Ensure you modify the arguments above first for your function,
+     then modify stuff below to match that.  Note that the length of
+     the y, z, w arrays has to be passed, and the result is stored
+     into a variable that Fortran provides `result`.
+  */
+
+  int num_protected = 0;   /* The number of args protected on stack */
+  SEXP ry, rz, rw;  /* The R structures we will build below. */
+
+  /* Allocate space for the vectors we wish to construct */
+  PROTECT(ry = allocVector(REALSXP, *n));
+  num_protected++;
+  PROTECT(rz = allocVector(REALSXP, *n));
+  num_protected++;
+  PROTECT(rw = allocVector(REALSXP, *n));
+  num_protected++;
+
+  /* Now copy the values from Fortran arrays into the R arrays */
+  double *yvec = REAL(ry); double *zvec = REAL(rz); double *wvec = REAL(rw);
+  for (int i = 0; i < *n; i++) {
+    yvec[i] = y[i]; zvec[i] = z[i]; wvec[i] = w[i];
+  }
+
+  /* Standard stuff: set up environment and evaluate R function */
+  SEXP rho = R_GetCurrentEnv();
+  SEXP call = PROTECT(LCONS(rfunc, LCONS(ry, LCONS(rz, LCONS(rw, R_NilValue)))));
+  num_protected++;
+  SEXP r_result = R_forceAndCall(call, 3, rho);
+
+  /* Examine result length */
+  R_len_t len = length(r_result);
+
+  /* Throw error if result is more than one; might bomb anyway */
+  if (len > 1) {
+    error("R discrepancy function result length > 1");
+  }
+
+  *result = REAL(r_result)[0];
+
+  UNPROTECT(num_protected);
+}
+```
+
+2. Write a Fortran function to call the C function in step 1.
+
+```{fortran, eval = FALSE}
+c$$$  Assumes the r function has been set using ftest::save_rfun
+      subroutine fcallr(n, y, z, w, res)
+      integer n
+      double precision y(n), z(n), w(n), res
+      call rfcall(n, y, z, w, res)
+      return
+      end
+```
+
+3. Write an R function to save the R function where Fortran can find
+   it. This is problem invariant.
+
+```{r, eval = FALSE}
+#' Save the function f for calling from fortran
+#' @param f the R function to be called using `.Fortran`
+#' @useDynLib ftest
+#' @export save_rfunc
+save_rfunc  <- function(f) {
+    .Call("store_rfun", f, PACKAGE = "ftest")
+    invisible(TRUE)
+}
+```
+
+4. Write the Fortran interface using `.Fortran()` call.
+
+```{r}
+#' Compute the discrepancy using `r_fun` using`fcallr`
+#' @para r_fun a function of three parameters 
+r_from_f  <- function(r_fun, y, z, w) {
+    ## save the R function to call in C ; fcallr knows to look for it there.
+    ftest::save_rfunc(r_fun)
+    u <- .Fortran("fcallr",
+                  length(y),
+                  as.double(y),
+                  as.double(z),
+                  as.double(w),
+                  result = as.double(0), PACKAGE = "ftest")
+    u$result
+}
+```
+
+## Test Run
+
+An actual run
+
+```{r}
+y = 1:10; z = 11:20; w = rep(1, 10);
+cat(sprintf("Direct R function call: %f\n", discrepancy(y = y, z = z, w = w)))
+cat(sprintf("Calling R from Fortran: %f\n", r_from_f(discrepancy, y, z, w)))
+```
+
+
+
+
+
+
+
+
+
+
+
+
