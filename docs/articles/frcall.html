@@ -69,13 +69,13 @@
 
       
 
-      </header><div class="row">
+      </header><script src="frcall_files/header-attrs-2.3/header-attrs.js"></script><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>Calling R functions from Fortran</h1>
                         <h4 class="author">Balasubramanian Narasimhan</h4>
             
-            <h4 class="date">2020-08-04</h4>
+            <h4 class="date">2020-08-08</h4>
       
       
       <div class="hidden name"><code>frcall.Rmd</code></div>
@@ -123,75 +123,75 @@
 <ol style="list-style-type: decimal">
 <li>Write a C function, say <code>src/rcall.c</code> to call the R function as follows. What follows below is the implementation of the <code>discrepancy()</code> function above. You will have to tailor this to each R function you want to call. Note that this requires knowledge of C/C++ interface in R, discussed in the <em>Writing R Extensions</em> manual. The comments below are meant to help.</li>
 </ol>
-<div class="sourceCode" id="cb4"><pre class="sourceCode c"><code class="sourceCode c"><a class="sourceLine" id="cb4-1" title="1"><span class="co">/* Start of section not to be modified */</span></a>
-<a class="sourceLine" id="cb4-2" title="2"></a>
-<a class="sourceLine" id="cb4-3" title="3"><span class="pp">#include </span><span class="im">&lt;R.h&gt;</span></a>
-<a class="sourceLine" id="cb4-4" title="4"><span class="pp">#include </span><span class="im">&lt;Rinternals.h&gt;</span></a>
-<a class="sourceLine" id="cb4-5" title="5"></a>
-<a class="sourceLine" id="cb4-6" title="6"><span class="dt">static</span> SEXP rfunc;</a>
-<a class="sourceLine" id="cb4-7" title="7"></a>
-<a class="sourceLine" id="cb4-8" title="8"><span class="co">/* Store the R function */</span></a>
-<a class="sourceLine" id="cb4-9" title="9">SEXP store_rfun(SEXP rfun) {</a>
-<a class="sourceLine" id="cb4-10" title="10">  rfunc = rfun;</a>
-<a class="sourceLine" id="cb4-11" title="11">  <span class="cf">return</span>(R_NilValue);</a>
-<a class="sourceLine" id="cb4-12" title="12">}</a>
-<a class="sourceLine" id="cb4-13" title="13"></a>
-<a class="sourceLine" id="cb4-14" title="14"><span class="co">/* End of section not to be modified */</span></a>
-<a class="sourceLine" id="cb4-15" title="15"></a>
-<a class="sourceLine" id="cb4-16" title="16"><span class="dt">void</span> F77_NAME(rfcall)(<span class="dt">int</span> *n, <span class="dt">double</span> *y, <span class="dt">double</span> *z, <span class="dt">double</span> *w, <span class="dt">double</span> *result) {</a>
-<a class="sourceLine" id="cb4-17" title="17"></a>
-<a class="sourceLine" id="cb4-18" title="18">  <span class="co">/* </span></a>
-<a class="sourceLine" id="cb4-19" title="19"><span class="co">     Ensure you modify the arguments above first for your function,</span></a>
-<a class="sourceLine" id="cb4-20" title="20"><span class="co">     then modify stuff below to match that.  Note that the length of</span></a>
-<a class="sourceLine" id="cb4-21" title="21"><span class="co">     the y, z, w arrays has to be passed, and the result is stored</span></a>
-<a class="sourceLine" id="cb4-22" title="22"><span class="co">     into a variable that Fortran provides `result`.</span></a>
-<a class="sourceLine" id="cb4-23" title="23"><span class="co">  */</span></a>
-<a class="sourceLine" id="cb4-24" title="24"></a>
-<a class="sourceLine" id="cb4-25" title="25">  <span class="dt">int</span> num_protected = <span class="dv">0</span>;   <span class="co">/* The number of args protected on stack */</span></a>
-<a class="sourceLine" id="cb4-26" title="26">  SEXP ry, rz, rw;  <span class="co">/* The R structures we will build below. */</span></a>
-<a class="sourceLine" id="cb4-27" title="27"></a>
-<a class="sourceLine" id="cb4-28" title="28">  <span class="co">/* Allocate space for the vectors we wish to construct */</span></a>
-<a class="sourceLine" id="cb4-29" title="29">  PROTECT(ry = allocVector(REALSXP, *n));</a>
-<a class="sourceLine" id="cb4-30" title="30">  num_protected++;</a>
-<a class="sourceLine" id="cb4-31" title="31">  PROTECT(rz = allocVector(REALSXP, *n));</a>
-<a class="sourceLine" id="cb4-32" title="32">  num_protected++;</a>
-<a class="sourceLine" id="cb4-33" title="33">  PROTECT(rw = allocVector(REALSXP, *n));</a>
-<a class="sourceLine" id="cb4-34" title="34">  num_protected++;</a>
-<a class="sourceLine" id="cb4-35" title="35"></a>
-<a class="sourceLine" id="cb4-36" title="36">  <span class="co">/* Now copy the values from Fortran arrays into the R arrays */</span></a>
-<a class="sourceLine" id="cb4-37" title="37">  <span class="dt">double</span> *yvec = REAL(ry); <span class="dt">double</span> *zvec = REAL(rz); <span class="dt">double</span> *wvec = REAL(rw);</a>
-<a class="sourceLine" id="cb4-38" title="38">  <span class="cf">for</span> (<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; *n; i++) {</a>
-<a class="sourceLine" id="cb4-39" title="39">    yvec[i] = y[i]; zvec[i] = z[i]; wvec[i] = w[i];</a>
-<a class="sourceLine" id="cb4-40" title="40">  }</a>
-<a class="sourceLine" id="cb4-41" title="41"></a>
-<a class="sourceLine" id="cb4-42" title="42">  <span class="co">/* Standard stuff: set up environment and evaluate R function */</span></a>
-<a class="sourceLine" id="cb4-43" title="43">  SEXP rho = R_GetCurrentEnv();</a>
-<a class="sourceLine" id="cb4-44" title="44">  SEXP call = PROTECT(LCONS(rfunc, LCONS(ry, LCONS(rz, LCONS(rw, R_NilValue)))));</a>
-<a class="sourceLine" id="cb4-45" title="45">  num_protected++;</a>
-<a class="sourceLine" id="cb4-46" title="46">  SEXP r_result = R_forceAndCall(call, <span class="dv">3</span>, rho);</a>
-<a class="sourceLine" id="cb4-47" title="47"></a>
-<a class="sourceLine" id="cb4-48" title="48">  <span class="co">/* Examine result length */</span></a>
-<a class="sourceLine" id="cb4-49" title="49">  R_len_t len = length(r_result);</a>
-<a class="sourceLine" id="cb4-50" title="50"></a>
-<a class="sourceLine" id="cb4-51" title="51">  <span class="co">/* Throw error if result is more than one; might bomb anyway */</span></a>
-<a class="sourceLine" id="cb4-52" title="52">  <span class="cf">if</span> (len &gt; <span class="dv">1</span>) {</a>
-<a class="sourceLine" id="cb4-53" title="53">    error(<span class="st">"R discrepancy function result length &gt; 1"</span>);</a>
-<a class="sourceLine" id="cb4-54" title="54">  }</a>
-<a class="sourceLine" id="cb4-55" title="55"></a>
-<a class="sourceLine" id="cb4-56" title="56">  *result = REAL(r_result)[<span class="dv">0</span>];</a>
-<a class="sourceLine" id="cb4-57" title="57"></a>
-<a class="sourceLine" id="cb4-58" title="58">  UNPROTECT(num_protected);</a>
-<a class="sourceLine" id="cb4-59" title="59">}</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="co">/* Start of section not to be modified */</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a><span class="pp">#include </span><span class="im">&lt;R.h&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a><span class="pp">#include </span><span class="im">&lt;Rinternals.h&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a><span class="dt">static</span> SEXP rfunc;</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a><span class="co">/* Store the R function */</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a>SEXP store_rfun(SEXP rfun) {</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true"></a>  rfunc = rfun;</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true"></a>  <span class="cf">return</span>(R_NilValue);</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true"></a>}</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true"></a><span class="co">/* End of section not to be modified */</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true"></a><span class="dt">void</span> F77_NAME(rfcall)(<span class="dt">int</span> *n, <span class="dt">double</span> *y, <span class="dt">double</span> *z, <span class="dt">double</span> *w, <span class="dt">double</span> *result) {</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true"></a>  <span class="co">/* </span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true"></a><span class="co">     Ensure you modify the arguments above first for your function,</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true"></a><span class="co">     then modify stuff below to match that.  Note that the length of</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true"></a><span class="co">     the y, z, w arrays has to be passed, and the result is stored</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true"></a><span class="co">     into a variable that Fortran provides `result`.</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true"></a><span class="co">  */</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true"></a>  <span class="dt">int</span> num_protected = <span class="dv">0</span>;   <span class="co">/* The number of args protected on stack */</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true"></a>  SEXP ry, rz, rw;  <span class="co">/* The R structures we will build below. */</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true"></a></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true"></a>  <span class="co">/* Allocate space for the vectors we wish to construct */</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true"></a>  PROTECT(ry = allocVector(REALSXP, *n));</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true"></a>  num_protected++;</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true"></a>  PROTECT(rz = allocVector(REALSXP, *n));</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true"></a>  num_protected++;</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true"></a>  PROTECT(rw = allocVector(REALSXP, *n));</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true"></a>  num_protected++;</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true"></a>  <span class="co">/* Now copy the values from Fortran arrays into the R arrays */</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true"></a>  <span class="dt">double</span> *yvec = REAL(ry); <span class="dt">double</span> *zvec = REAL(rz); <span class="dt">double</span> *wvec = REAL(rw);</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true"></a>  <span class="cf">for</span> (<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; *n; i++) {</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true"></a>    yvec[i] = y[i]; zvec[i] = z[i]; wvec[i] = w[i];</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true"></a>  }</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true"></a></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true"></a>  <span class="co">/* Standard stuff: set up environment and evaluate R function */</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true"></a>  SEXP rho = R_GetCurrentEnv();</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true"></a>  SEXP call = PROTECT(LCONS(rfunc, LCONS(ry, LCONS(rz, LCONS(rw, R_NilValue)))));</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true"></a>  num_protected++;</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true"></a>  SEXP r_result = R_forceAndCall(call, <span class="dv">3</span>, rho);</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true"></a></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true"></a>  <span class="co">/* Examine result length */</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true"></a>  R_len_t len = length(r_result);</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true"></a></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true"></a>  <span class="co">/* Throw error if result is more than one; might bomb anyway */</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true"></a>  <span class="cf">if</span> (len &gt; <span class="dv">1</span>) {</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true"></a>    error(<span class="st">"R discrepancy function result length &gt; 1"</span>);</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true"></a>  }</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true"></a></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true"></a>  *result = REAL(r_result)[<span class="dv">0</span>];</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true"></a></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true"></a>  UNPROTECT(num_protected);</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true"></a>}</span></code></pre></div>
 <ol start="2" style="list-style-type: decimal">
 <li>Write a Fortran function to call the C function in step 1.</li>
 </ol>
-<div class="sourceCode" id="cb5"><pre class="sourceCode fortran"><code class="sourceCode fortran"><a class="sourceLine" id="cb5-1" title="1"><span class="co">c$$$  Assumes the r function has been set using ftest::save_rfun</span></a>
-<a class="sourceLine" id="cb5-2" title="2">      <span class="kw">subroutine</span> fcallr(n, y, z, w, res)</a>
-<a class="sourceLine" id="cb5-3" title="3">      <span class="dt">integer</span> n</a>
-<a class="sourceLine" id="cb5-4" title="4">      <span class="dt">double</span> <span class="dt">precision</span> y(n), z(n), w(n), res</a>
-<a class="sourceLine" id="cb5-5" title="5">      <span class="kw">call</span> rfcall(n, y, z, w, res)</a>
-<a class="sourceLine" id="cb5-6" title="6">      <span class="kw">return</span></a>
-<a class="sourceLine" id="cb5-7" title="7">      <span class="kw">end</span></a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode fortran"><code class="sourceCode fortran"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="co">c$$$  Assumes the r function has been set using ftest::save_rfun</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a>      <span class="kw">subroutine</span> fcallr(n, y, z, w, res)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a>      <span class="dt">integer</span> n</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a>      <span class="dt">double</span> <span class="dt">precision</span> y(n), z(n), w(n), res</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a>      <span class="kw">call</span> rfcall(n, y, z, w, res)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a>      <span class="kw">return</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true"></a>      <span class="kw">end</span></span></code></pre></div>
 <ol start="3" style="list-style-type: decimal">
 <li>Write an R function to save the R function where Fortran can find it. This is problem invariant.</li>
 </ol>
